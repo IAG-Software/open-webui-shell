@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Settings</title>
+<style>
+  :root {
+    --bg: #0e0e12; --card: rgba(255,255,255,.045); --card2: rgba(255,255,255,.075);
+    --stroke: rgba(255,255,255,.09); --txt: #ececec; --muted: #9b9ba3;
+    --accent: #6ea8ff; --danger: #ff5f57; --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { height:100%; overflow:hidden; }
+  body { background: radial-gradient(1200px 500px at 20% -10%, rgba(110,168,255,.07), transparent), var(--bg);
+         color: var(--txt); font-family: 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; font-size: 13.5px; }
+  #titlebar { height: 38px; -webkit-app-region: drag; display:flex; align-items:center; padding: 0 14px; color: var(--muted); font-size: 12px; position: relative; }
+  #titlebar::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background: var(--stroke); }
+
+  #app { display: grid; grid-template-columns: 220px 1fr; height: calc(100% - 39px); }
+
+  nav { border-right: 1px solid var(--stroke); padding: 14px 10px; overflow-y:auto; }
+  nav .navbtn { display:flex; align-items:center; gap:10px; padding: 9px 12px; border-radius: 9px; cursor:pointer; color: var(--muted); margin-bottom: 2px; border:1px solid transparent; }
+  nav .navbtn:hover { background: var(--card); color: var(--txt); }
+  nav .navbtn.act { background: var(--card2); color: var(--txt); border-color: var(--stroke); }
+  nav .foot { margin-top: 18px; padding: 10px 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+
+  main { padding: 26px 30px 40px; overflow-y:auto; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 20px; }
+  section { display:none; }
+  section.act { display:block; animation: fade .18s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform:none;} }
+
+  .card { background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius); margin-bottom: 14px; overflow:hidden; }
+  .card > .head { padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--stroke); }
+  .row { display:flex; align-items:center; gap:12px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.04); min-height: 52px; }
+  .row:last-child { border-bottom: none; }
+  .row .g { flex:1; min-width: 0; }
+  .row .name { font-size: 13px; }
+  .row .desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+
+  .switch { position: relative; width: 42px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.12); cursor: pointer; border: 1px solid var(--stroke); transition: all .18s; flex:none; }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition: all .18s cubic-bezier(.2,.9,.3,1.4); }
+  .switch.on { background: var(--accent); border-color: transparent; }
+  .switch.on::after { left: 22px; }
+
+  select, input[type=text] {
+    background: rgba(0,0,0,.25); color: var(--txt); border: 1px solid var(--stroke); border-radius: 8px;
+    padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;
+  }
+  select:focus, input[type=text]:focus { border-color: var(--accent); }
+  textarea { background: rgba(0,0,0,.25); color: #dcdcdc; border: 1px solid var(--stroke); border-radius: 8px; padding: 10px; font-size: 12px; font-family: 'Cascadia Code', Consolas, monospace; outline: none; width: 100%; min-height: 110px; resize: vertical; }
+  textarea:focus { border-color: var(--accent); }
+  .btn { background: var(--card2); color: var(--txt); border: 1px solid var(--stroke); border-radius: 8px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: rgba(255,255,255,.25); }
+  .btn.primary { background: var(--accent); border-color: transparent; color: #06121f; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.1); }
+  .btn.danger { color: var(--danger); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .kbd { border:1px solid var(--stroke); background: rgba(0,0,0,.3); border-radius: 7px; padding: 8px 14px; font-size: 12.5px; font-family: 'Cascadia Code',Consolas,monospace; min-width: 190px; text-align:center; cursor: pointer; transition: border-color .15s; }
+  .kbd.record { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px rgba(110,168,255,.15); }
+
+  .inst { display:flex; align-items:center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; }
+  .inst:hover { background: var(--card); }
+  .inst .radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); flex:none; display:grid; place-items:center; }
+  .inst.sel .radio { border-color: var(--accent); }
+  .inst.sel .radio::after { content:''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  .inst .t { font-size: 13px; }
+  .inst .u { font-size: 11px; color: var(--muted); }
+  .inst .del { margin-left:auto; opacity:.35; cursor: pointer; font-size: 14px; padding: 2px 8px; }
+  .inst .del:hover { opacity: 1; color: var(--danger); }
+  .found { color: #48e08a; }
+  .checking { color: var(--muted); animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .4; } }
+
+  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(60px); background: rgba(20,20,26,.9); border:1px solid var(--stroke); padding: 9px 18px; border-radius: 10px; font-size: 12.5px; transition: transform .25s cubic-bezier(.2,.9,.3,1.3); z-index: 50; }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  .about-icons { display:flex; align-items:center; gap: 16px; margin: 8px 0 18px; }
+  .about-icons img { width: 64px; height: 64px; border-radius: 14px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="titlebar"><span style="margin-left:4px">Open WebUI Shell — Settings</span></div>
+<div id="app">
+  <nav>
+    <div class="navbtn act" data-s="general">⬡&nbsp; General</div>
+    <div class="navbtn" data-s="connection">⇄&nbsp; Connection</div>
+    <div class="navbtn" data-s="appearance">◐&nbsp; Appearance</div>
+    <div class="navbtn" data-s="shortcuts">⌘&nbsp; Shortcuts</div>
+    <div class="navbtn" data-s="advanced">⚙&nbsp; Advanced</div>
+    <div class="navbtn" data-s="about">◎&nbsp; About</div>
+    <div class="foot">Open WebUI Shell<br/><span id="ver"></span></div>
+  </nav>
+
+  <main>
+    <!-- GENERAL -->
+    <section class="act" data-s="general">
+      <h1>General</h1><div class="sub">Everyday shell behavior</div>
+      <div class="card"> <div class="head">Startup &amp; Tray</div>
+        <div class="row"><div class="g"><div class="name">Launch at Windows login</div><div class="desc">Start minimized to the tray when you sign in.</div></div><div class="switch" data-k="behavior.launchAtLogin"></div></div>
+        <div class="row"><div class="g"><div class="name">Close to tray</div><div class="desc">Closing the window keeps the shell running in the tray.</div></div><div class="switch" data-k="behavior.closeToTray"></div></div>
+        <div class="row"><div class="g"><div class="name">Show Spotlight at startup</div><div class="desc">Flash the command bar when the shell launches.</div></div><div class="switch" data-k="behavior.spotlightOnStartup"></div></div>
+        <div class="row"><div class="g"><div class="name">Background throttling</div><div class="desc">Pause rendering when hidden (longer battery life).</div></div><div class="switch" data-k="behavior.backgroundThrottling"></div></div>
+      </div>
+    </section>
+
+    <!-- CONNECTION -->
+    <section data-s="connection">
+      <h1>Connection</h1><div class="sub">Your Open WebUI instances</div>
+      <div class="card"> <div class="head">Active Instance</div>
+        <div id="instList"></div>
+        <div class="row" style="gap:8px">
+          <input type="text" id="inName" placeholder="Name (optional)" style="width:150px" />
+          <input type="text" id="inUrl" placeholder="http://localhost:8080" style="flex:1" />
+          <button class="btn primary" id="btnAdd">Add</button>
+        </div>
+      </div>
+      <div class="card"> <div class="head">Discovery</div>
+        <div class="row"><div class="g"><div class="name">Detect local instances</div><div class="desc" id="scanInfo">Scans common ports on this machine for a running Open WebUI.</div></div><button class="btn" id="btnScan">Scan now</button></div>
+      </div>
+    </section>
+
+    <!-- APPEARANCE -->
+    <section data-s="appearance">
+      <h1>Appearance</h1><div class="sub">Make the shell yours</div>
+      <div class="card"> <div class="head">Window</div>
+        <div class="row"><div class="g"><div class="name">Backdrop material</div><div class="desc">Windows 11 translucency behind the shell UI.</div></div>
+          <select data-k="window.backdrop"><option value="acrylic">Acrylic blur</option><option value="mica">Mica (subtle)</option><option value="none">None</option></select>
+        </div>
+        <div class="row"><div class="g"><div class="name">Always on top</div><div class="desc">Floating above all other windows.</div></div><div class="switch" data-k="window.alwaysOnTop"></div></div>
+        <div class="row"><div class="g"><div class="name">Remember window size</div><div class="desc">Restore the last window dimensions.</div></div><div class="switch" data-k="window.rememberSize"></div></div>
+        <div class="row"><div class="g"><div class="name">Hide scrollbars (slim style)</div><div class="desc">Slim overlay-style scrollbars in the web UI.</div></div><div class="switch" data-k="appearance.hideScrollbar"></div></div>
+      </div>
+      <div class="card"> <div class="head">Custom CSS</div>
+        <div class="row" style="display:block;">
+          <div class="desc" style="margin-bottom:8px">Injected into the web UI. Great for hiding elements or tweaking the theme.</div>
+          <textarea id="cssText" spellcheck="false" placeholder="#sidebar { width: 260px !important; }"></textarea>
+          <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+            <button class="btn" id="cssRevert">Revert</button>
+            <button class="btn primary" id="cssApply">Apply CSS</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SHORTCUTS -->
+    <section data-s="shortcuts">
+      <h1>Shortcuts</h1><div class="sub">Global system-wide hotkeys — click, then press the combo</div>
+      <div class="card"> <div class="head">Global</div>
+        <div class="row"><div class="g"><div class="name">Spotlight</div><div class="desc">Open the floating command bar.</div></div><div class="kbd" data-k="spotlight" title="Click to record"></div></div>
+        <div class="row"><div class="g"><div class="name">Toggle shell window</div><div class="desc">Hide/show the main window.</div></div><div class="kbd" data-k="toggleWindow"></div></div>
+        <div class="row"><div class="g"><div class="name">Live Mode</div><div class="desc">Start / end the floating voice call.</div></div><div class="kbd" data-k="liveMode"></div></div>
+        <div class="row"><div class="g"><div class="name">Developer Tools</div><div class="desc">Open dev tools for the web UI.</div></div><div class="kbd" data-k="devTools"></div></div>
+      </div>
+      <div class="sub" style="margin-top:10px">Inside Spotlight: <b>Ctrl+L</b> toggles Live Mode · type to search chats · <b>↓/↑</b> and <b>Enter</b> to run.</div>
+    </section>
+
+    <!-- ADVANCED -->
+    <section data-s="advanced">
+      <h1>Advanced</h1><div class="sub">For brave people</div>
+      <div class="card"> <div class="head">Search</div>
+        <div class="row"><div class="g"><div class="name">Chat URL format</div><div class="desc">How deep links to chats are built. Open WebUI 0.5+ uses /c/{id}.</div></div><input type="text" data-k="advanced.chatUrlFormat" style="width:150px; font-family:Cascadia Code, Consolas, monospace" /></div>
+        <div class="row"><div class="g"><div class="name">Spotlight result limit</div><div class="desc">Max chat results shown per query.</div></div><input type="text" data-k="advanced.spotlightResults" style="width:70px; text-align:center" /></div>
+      </div>
+      <div class="card"> <div class="head">Danger zone</div>
+        <div class="row"><div class="g"><div class="name">Reset all settings</div><div class="desc">Back to factory defaults (instances are kept).</div></div><button class="btn danger" id="btnReset">Reset</button></div>
+        <div class="row"><div class="g"><div class="name">Open config file</div><div class="desc">Peek at the raw JSON config.</div></div><button class="btn" id="btnOpenCfg">Open</button></div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section data-s="about">
+      <h1>About</h1><div class="sub"></div>
+      <div class="card"><div class="head">Open WebUI Shell</div>
+        <div class="row" style="display:block; padding: 18px 20px;">
+          <div class="about-icons"><img src="../icon.png" alt="icon" onerror="this.style.display='none'" /></div>
+          <div style="line-height:1.8; color: var(--muted); font-size: 12.5px;">
+            A premium Electron desktop experience for <b>Open WebUI</b> — Spotlight bar, Live voice mode, instance management and native Windows 11 integration.<br/><br/>
+            Built by <b>Khalid Jehani</b> · <span id="aboutVer"></span><br/><br/>
+            <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://github.com/IAG-Software/open-webui-shell'}); return false;">GitHub repository ↗</a> ·
+            <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://openwebui.com'}); return false;">Open WebUI ↗</a><br/><br/>
+            MIT License · Open WebUI content and branding remain subject to the <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://raw.githubusercontent.com/open-webui/open-webui/main/LICENSE'}); return false;">Open WebUI license</a>. Not affiliated with Open WebUI.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<div id="toast"></div>
+
+<script src="settings.js"></script>
+</body>
+</html>

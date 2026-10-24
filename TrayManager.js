@@ -1,73 +1,68 @@
 const { Menu, nativeImage } = require('electron');
 const path = require('path');
-const { DEFAULT_CONFIG } = require('./ConfigManager');
 
 /**
- * Manages the system-level UI elements like the Tray Icon and Context Menu.
+ * Tray icon + context menu. Actions are injected from main.js so this class
+ * stays dumb (no hidden placeholders like before).
  */
 class TrayManager {
-    constructor(config) {
-        this.iconPath = config.iconPath;
+    constructor(deps) {
+        // deps: { getConfig, actions: {openMain, openSpotlight, toggleLive, isLiveActive, openSettings,
+        //        openInBrowser, selectInstance(url,name), detectInstances, quit} }
+        this.deps = deps;
         this.tray = null;
+        this.icon = nativeImage.createFromPath(path.join(__dirname, 'icon.png')).resize({ width: 16, height: 16 });
     }
 
-    /**
-     * Creates and sets up the tray icon and its context menu.
-     */
-    setupTrayIcon() {
-        const appIcon = nativeImage.createFromPath(this.iconPath).resize({ width: 16, height: 16 });
-        this.tray = new Menu.Tray(appIcon);
-        
-        this.contextMenu = this.buildContextMenu();
-        this.tray.setContextMenu(this.contextMenu);
+    create() {
+        this.tray = new (require('electron').Tray)(this.icon);
         this.tray.setToolTip('Open WebUI Shell');
-
-        // Disable default application menu to avoid conflicts
-        Menu.setApplicationMenu(null); 
+        this.rebuild();
+        return this.tray;
     }
 
-    /**
-     * Builds the context menu structure for the tray icon.
-     * @returns {Electron.Menu} The built menu template.
-     */
-    buildContextMenu() {
-        const menu = Menu.buildFromTemplate([
-            { label: 'Open Shell', click: () => { /* This should trigger window show/open */ } }, // Actual opening logic handled by app init
+    rebuild() {
+        if (!this.tray) return;
+        const a = this.deps.actions;
+        const cfg = this.deps.getConfig();
+        const instances = (cfg.instances || []).map((i) => ({
+            label: `${i.name || i.url}  —`,
+            type: 'radio',
+            checked: i.url === cfg.url,
+            click: () => a.selectInstance(i.url, i.name)
+        }));
+
+        const template = [
+            { label: 'Open WebUI Shell', enabled: false },
             { type: 'separator' },
-            { label: 'Connect to Instance...', click: async () => { 
-                // Assuming the main module will pass a function for URL prompting here, 
-                // but for now, we just log/call a placeholder.
-                console.log("Prompting for new instance URL..."); 
-            } },
-            { 
-                label: 'Always on Top', 
-                type: 'checkbox', 
-                checked: false,
-                click: (item) => { /* Logic to set window alwaysOnTop */ }
+            { label: 'Open Window', click: () => a.openMain() },
+            { label: 'Spotlight  (' + (cfg.shortcuts?.spotlight || 'Alt+Space') + ')', click: () => a.openSpotlight() },
+            {
+                label: 'Live Mode  (' + (cfg.shortcuts?.liveMode || 'Ctrl+Alt+M') + ')',
+                type: 'checkbox',
+                checked: !!a.isLiveActive(),
+                click: () => a.toggleLive()
             },
-            { label: 'Reload', click: () => { /* Placeholder for reload logic */ } },
             { type: 'separator' },
-            { label: 'Quit', click: async () => { 
-                // Need access to global app quit or passing the quit function
-            } }
-        ]);
-
-        return menu;
-    }
-
-    /**
-     * Placeholder method for external actions (like opening/quitting).
-     * In a real implementation, this class would need references to the main WindowManager and App object.
-     */
-    attachListeners(windowManager) {
-         // Re-wiring click handlers to use actual dependencies:
-        const menu = Menu.buildFromTemplate([
-            { label: 'Open Shell', click: () => windowManager.showWindow() },
+            {
+                label: 'Instances',
+                submenu: instances.length ? instances : [{ label: 'No saved instances yet', enabled: false }]
+            },
+            { label: 'Detect Local Instances', click: () => a.detectInstances() },
+            { label: 'Open in Default Browser', click: () => a.openInBrowser() },
             { type: 'separator' },
-            { label: 'Connect to Instance...', click: () => console.log('Needs URL Prompting Logic') }, // Needs ConfigManager access
-            // ... other handlers need adjustment based on where they are called in the app
-        ]);
-        this.tray.setContextMenu(menu);
+            { label: 'Settings…', click: () => a.openSettings() },
+            {
+                label: 'Always on Top',
+                type: 'checkbox',
+                checked: !!cfg.window?.alwaysOnTop,
+                click: (item) => a.setAlwaysOnTop(item.checked)
+            },
+            { type: 'separator' },
+            { label: 'Quit', click: () => a.quit() }
+        ];
+
+        this.tray.setContextMenu(Menu.buildFromTemplate(template));
     }
 }
 

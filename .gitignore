@@ -13,4 +13,5 @@ Thumbs.db
 
 Local config (if generated during testing)
 
-config.json
+config.json.snapshots/
+.snapshots/

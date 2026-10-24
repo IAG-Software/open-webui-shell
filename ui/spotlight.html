@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Spotlight</title>
+<style>
+  :root {
+    --bg: rgba(14, 14, 18, 0.34);
+    --bg-solid: rgba(16, 16, 20, 0.92);
+    --stroke: rgba(255, 255, 255, 0.055);
+    --hi: rgba(255, 255, 255, 0.10);
+    --txt: rgba(252, 252, 253, 0.94);
+    --muted: rgba(240, 240, 248, 0.42);
+    --accent: #7aa5ff;
+    --live: linear-gradient(135deg, #ff5f9e, #a06bff 55%, #37c2ff);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+  html, body { height: 100%; background: transparent; overflow: hidden; }
+  body { font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif; }
+
+  #stage { height: 100%; padding: 36px 60px 0; display: flex; align-items: flex-start; justify-content: center; opacity: 0; transform: translateY(5px) scale(0.975); transition: opacity .15s ease, transform .18s cubic-bezier(.2,.9,.3,1.15); pointer-events: none; }
+  #stage.in { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+
+  #panel {
+    width: 100%; max-width: 620px; border-radius: 16px; position: relative;
+    background: var(--bg);
+    border: 1px solid var(--stroke);
+    box-shadow: 0 24px 70px rgba(0,0,0,.34);
+    backdrop-filter: blur(64px) saturate(1.35);
+    -webkit-backdrop-filter: blur(64px) saturate(1.35);
+    overflow: hidden;
+  }
+
+  /* ── search row ──────────────────────────────── */
+  #row { display: flex; align-items: center; gap: 10px; padding: 13px 14px 13px 18px; }
+  #icon { flex: none; color: var(--muted); display: grid; place-items: center; }
+  #icon svg { width: 20px; height: 20px; }
+  #input {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--txt); font-size: 19px; font-weight: 350; letter-spacing: .2px; caret-color: var(--accent);
+  }
+  #input::placeholder { color: var(--muted); }
+  #status { flex: none; display: flex; align-items: center; gap: 7px; color: var(--muted); }
+  #statusDot { width: 6px; height: 6px; border-radius: 50%; background: #46d888; box-shadow: 0 0 7px #46d88899; opacity: .85; }
+  #statusDot.off { background: #ff5f57; box-shadow: 0 0 7px #ff5f5788; }
+  #instancePill { font-size: 11px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .8; }
+
+  /* ── live pill ───────────────────────────────── */
+  #liveBtn {
+    flex: none; display: flex; align-items: center; gap: 6px;
+    padding: 6px 13px 6px 9px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.07);
+    color: #e9d9ff; font-size: 12px; font-weight: 600; letter-spacing: .02em;
+    transition: all .2s ease;
+  }
+  #liveBtn .mic { width: 15px; height: 15px; color: #cf9fff; }
+  #liveBtn:hover { border-color: rgba(160,107,255,.45); box-shadow: 0 0 16px rgba(160,107,255,.18); }
+  #liveBtn.active {
+    border: 1.5px solid transparent;
+    background: linear-gradient(var(--bg-solid), var(--bg-solid)) padding-box, var(--live) border-box;
+    box-shadow: 0 0 20px rgba(160,107,255,.28);
+  }
+  #liveBtn.active .lbl { color: #fff; text-shadow: 0 0 14px rgba(160,107,255,.9); }
+  @keyframes livepulse { 0%,100% { box-shadow: 0 0 12px rgba(160,107,255,.22);} 50% { box-shadow: 0 0 26px rgba(255,95,158,.36);} }
+  #liveBtn.active { animation: livepulse 2.6s ease-in-out infinite; }
+
+  /* ── results ─────────────────────────────────── */
+  #resultsWrap { border-top: 1px solid var(--stroke); }
+  #results { max-height: 322px; overflow: hidden auto; padding: 5px 6px 7px; scrollbar-width: none; }
+  #results::-webkit-scrollbar { width: 0; }
+  .section { font-size: 10px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); padding: 9px 14px 3px; opacity: .75; }
+  .item { display: flex; align-items: center; gap: 11px; padding: 7px 12px; margin: 0; border-radius: 9px; cursor: pointer; }
+  .item .ic { flex: none; width: 18px; height: 18px; color: var(--muted); display: grid; place-items: center; }
+  .item .ic svg { width: 16px; height: 16px; }
+  .item .tx { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 9px; }
+  .item .t { font-size: 13px; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item .s { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 2; }
+  .item.sel { background: var(--hi); }
+  .item .k { flex: none; font-size: 10px; color: var(--muted); opacity: .7; }
+  #empty { padding: 22px 16px; color: var(--muted); font-size: 12px; text-align: center; border-top: 1px solid var(--stroke); }
+
+  /* ── footer ──────────────────────────────────── */
+  #foot { display: flex; align-items: center; gap: 12px; padding: 6px 16px 8px; border-top: 1px solid var(--stroke); font-size: 10px; color: var(--muted); }
+  #foot .spacer { flex: 1; }
+  #foot .mode { color: rgba(205,182,255,.75); }
+  kbd.k2 { font-family: inherit; border: 1px solid var(--stroke); border-radius: 4px; padding: 0 4px; font-size: 9px; background: transparent; opacity: .8; }
+
+  #resultsWrap { display: none; }
+  #panel.with-results #resultsWrap { display: block; }
+  .item { animation: slide .14s both; }
+  @keyframes slide { from { opacity: 0; transform: translateY(2px);} to { opacity: 1; transform: none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="panel">
+    <div id="row">
+      <div id="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg></div>
+      <input id="input" placeholder="Search chats, type a command…" spellcheck="false" autocomplete="off" />
+      <span id="status"><span id="instancePill" title="Active instance"></span><span id="statusDot" title="Instance status"></span></span>
+      <div id="liveBtn" title="Live Mode — talk to your model (voice call)">
+        <svg class="mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22" /></svg>
+        <span class="lbl">Live</span>
+      </div>
+    </div>
+
+    <div id="resultsWrap">
+      <div id="results"></div>
+    </div>
+
+    <div id="empty" style="display:none"></div>
+
+    <div id="foot">
+      <span><kbd class="k2">↑</kbd><kbd class="k2">↓</kbd></span>
+      <span><kbd class="k2">↵</kbd></span>
+      <span><kbd class="k2">Esc</kbd></span>
+      <span class="spacer"></span>
+      <span class="mode" id="footMode"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const { invoke, on } = window.shellAPI;
+
+const state = {
+  mode: 'main',          // 'main' | 'switchInstance'
+  items: [], sel: 0, chats: [],
+  cfg: null, liveActive: false
+};
+
+const el = (id) => document.getElementById(id);
+const panel = el('panel'), input = el('input'), results = el('results'),
+      resultsWrap = el('resultsWrap'), empty = el('empty'), liveBtn = el('liveBtn'),
+      footMode = el('footMode'), instancePill = el('instancePill'), statusDot = el('statusDot');
+
+/* ── icons ─────────────────────────────────── */
+const svg = {
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10v1a7 7 0 0 0 14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5c-1.4 0-2.7-.3-3.9-.9L3 21l1.9-5.6A8.5 8.5 0 1 1 21 11.5z"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  swap: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>',
+  radar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9" opacity=".5"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  reload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  pin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76V4h6v6.76l2.5 2.2c.9.8.35 2.3-.85 2.3H7.35c-1.2 0-1.75-1.5-.85-2.3l2.5-2.2z"/></svg>',
+  globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></svg>',
+  bug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="6" width="8" height="12" rx="4"/><path d="M12 6V3M8 9H4M4 15h4M16 9h4M20 15h-4M9 21l.5-2M15 21l-.5-2"/></svg>',
+  quit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg>',
+  link: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"/></svg>',
+  end: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a4 4 0 1 0-8 0v6a4 4 0 0 0 8 0z" transform="rotate(180 14 14)"/><path d="M3 11v2a9 9 0 0 0 14.5 7"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>'
+};
+
+/* ── command catalog ───────────────────────── */
+const COMMANDS = [
+  { id: 'live-toggle', t: () => state.liveActive ? 'End Live Mode' : 'Start Live Mode', s: 'voice call', k: 'Ctrl+L', ic: () => state.liveActive ? svg.end : svg.mic, run: () => run('live-toggle') },
+  { id: 'new-chat', t: () => 'New Chat', s: 'fresh conversation', ic: () => svg.plus, run: () => run('newchat') },
+  { id: 'switch', t: () => 'Switch Instance', s: 'change connection', ic: () => svg.swap, run: () => enterSwitchMode() },
+  { id: 'detect', t: () => 'Detect Local Instances', s: 'scan ports', ic: () => svg.radar, run: () => run('detect') },
+  { id: 'settings', t: () => 'Settings', s: 'configuration', ic: () => svg.gear, run: () => run('settings') },
+  { id: 'reload', t: () => 'Reload Window', s: 'refresh page', ic: () => svg.reload, run: () => run('reload') },
+  { id: 'aot', t: () => (state.cfg?.window?.alwaysOnTop ? 'Disable Always on Top' : 'Enable Always on Top'), s: 'pin window', ic: () => svg.pin, run: () => run('aot') },
+  { id: 'open-in-browser', t: () => 'Open in Default Browser', s: 'continue externally', ic: () => svg.globe, run: () => run('browser') },
+  { id: 'devtools', t: () => 'Developer Tools', s: 'inspect', ic: () => svg.bug, run: () => run('devtools') },
+  { id: 'quit', t: () => 'Quit Open WebUI Shell', s: 'exit app', ic: () => svg.quit, run: () => run('quit') }
+];
+
+const SWITCH_COMMANDS = [
+  { id: 'back', t: () => '← Back', s: 'main spotlight', ic: () => svg.swap, run: () => backToMain() },
+  { id: 'switchdetect', t: () => 'Detect Local Instances', s: 'scan ports', ic: () => svg.radar, run: async () => {
+      footMode.textContent = 'Scanning…';
+      const found = await invoke('instances:detect').catch(() => []);
+      const owui = (found || []).filter(f => f.kind === 'open-webui');
+      const c = state.cfg || {};
+      const list = c.instances || [];
+      let added = 0;
+      owui.forEach(f => { if (!list.some(x => x.url === f.url)) { list.push({ name: f.name, url: f.url, lastUsed: Date.now() }); added++; } });
+      if (added) {
+        c.instances = list;
+        await invoke('instances:save', { instances: list, select: null });
+        state.cfg = c;
+        footMode.textContent = `+${added} found`;
+      } else {
+        footMode.textContent = 'Nothing new found';
+      }
+      render(true);
+    } }
+];
+
+/* ── helpers ───────────────────────────────── */
+async function run(id, cs) {
+  const commandSet = (cs || COMMANDS);
+  const c = commandSet.find(x => x.id === id);
+  let result;
+  if (c) result = c.run();
+  reset();
+  await result;
+}
+async function runAction(id, arg) {
+  invoke('spotlight:run', { id, arg });
+  reset();
+}
+
+function reset() {
+  state.mode = 'main';
+  state.chats = [];
+  invoke('spotlight:hide');
+  setTimeout(() => { input.value = ''; backToMainStatic(); }, 60);
+}
+
+function backToMain() {
+  state.mode = 'main';
+  input.value = '';
+  render();
+  input.focus();
+}
+function backToMainStatic() {
+  input.placeholder = 'Search chats, type a command…';
+  footMode.textContent = '';
+}
+
+function enterSwitchMode() {
+  state.mode = 'switchInstance';
+  input.value = '';
+  input.placeholder = 'Switch to which instance?';
+  footMode.textContent = 'Backspace to go back';
+  invoke('config:get').then((c) => { state.cfg = c; render(true); }).catch(() => {});
+  render(true);
+}
+
+function render(showAll) {
+  const q = input.value.trim().toLowerCase();
+  const cmdSet = state.mode === 'switchInstance' ? SWITCH_COMMANDS : COMMANDS;
+
+  let items = [];
+
+  if (state.mode === 'switchInstance') {
+    const insts = (state.cfg?.instances || [])
+      .filter(i => showAll || !q || (i.name || '').toLowerCase().includes(q) || (i.url || '').toLowerCase().includes(q))
+      .map(i => ({ kind: 'inst', obj: i }));
+    items = items.concat(insts);
+  } else {
+    let cmds = [];
+    if (q === '') cmds = cmdSet.slice();
+    else {
+      cmds = cmdSet
+        .map(c => ({ c, score: score(c.t().toLowerCase(), q) + (c.s && c.s.toLowerCase().includes(q) ? .25 : 0) }))
+        .filter(x => x.score >= 0.45)
+        .sort((a, b) => b.score - a.score)
+        .map(x => x.c);
+    }
+
+    if (/^(https?:\/\/|localhost(:\d+)?|\d{1,3}(\.\d{1,3}){3}(:\d+)?)/i.test(q) && q.length > 3) {
+      items.push({ kind: 'url', obj: { url: input.value.trim() } });
+    }
+
+    const chatItems = state.chats.filter(obj => !q || (obj.title || '').toLowerCase().includes(q));
+    if (chatItems.length) items = items.concat(chatItems.map(obj => ({ kind: 'chat', obj })));
+
+    items = items.concat(cmds.map(c => ({ kind: 'command', cmd: c })));
+  }
+
+  state.items = items;
+  state.sel = 0;
+  draw();
+}
+
+function draw() {
+  const list = state.items;
+  results.innerHTML = '';
+
+  if (!list.length) {
+    resultsWrap.style.display = 'none';
+    empty.style.display = 'block';
+    empty.textContent = input.value.trim() ? 'No matches' : 'Type to search';
+    panel.classList.remove('with-results');
+    return;
+  }
+  resultsWrap.style.display = 'block';
+  empty.style.display = 'none';
+  panel.classList.add('with-results');
+
+  let prev = '';
+  list.forEach((item, idx) => {
+    if (item.kind !== prev) {
+      const h = document.createElement('div');
+      h.className = 'section';
+      h.textContent = item.kind === 'chat' ? 'conversations' : item.kind === 'inst' ? 'instances' : item.kind === 'url' ? 'link' : 'commands';
+      results.appendChild(h);
+    }
+    prev = item.kind;
+
+    const d = document.createElement('div');
+    d.className = 'item' + (idx === state.sel ? ' sel' : '');
+    d.style.animationDelay = (Math.min(idx, 10) * 10) + 'ms';
+
+    let ic, title, sub = '', kbd = '';
+    if (item.kind === 'chat') { ic = svg.chat; title = item.obj.title; }
+    else if (item.kind === 'inst') { ic = (item.obj.url === (state.cfg?.url || '')) ? svg.check : svg.swap; title = item.obj.name || item.obj.url; sub = item.obj.url === title ? '' : item.obj.url; }
+    else if (item.kind === 'url') { ic = svg.link; title = 'Go to "' + item.obj.url + '"'; }
+    else { ic = item.cmd.ic(); title = item.cmd.t(); sub = item.cmd.s; kbd = item.cmd.k ? item.cmd.k : ''; }
+
+    d.innerHTML = `<div class="ic">${ic}</div><div class="tx"><span class="t">${esc(title)}</span><span class="s">${esc(sub)}</span></div><span class="k">${kbd}</span>`;
+    d.onclick = () => { state.sel = idx; pick(); };
+    results.appendChild(d);
+  });
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+function score(str, q) {
+  str = str || '';
+  let idx = str.indexOf(q);
+  if (idx === 0) return 1;
+  if (idx > 0) return .9;
+  let qi = 0;
+  for (const ch of str) { if (qi < q.length && ch === q[qi]) qi++; }
+  return qi === q.length ? .6 : 0;
+}
+
+function pick() {
+  const item = state.items[state.sel];
+  if (!item) return;
+  if (item.kind === 'chat') runAction('openChat', { id: item.obj.id, title: item.obj.title });
+  else if (item.kind === 'inst') runAction('goto', { url: item.obj.url });
+  else if (item.kind === 'url') runAction('goto', { url: item.obj.url });
+  else item.cmd.run();
+}
+
+/* ── events ────────────────────────────────── */
+input.addEventListener('input', () => {
+  render();
+  debounceSearch(input.value);
+});
+let debTimer = null;
+function debounceSearch(v) {
+  clearTimeout(debTimer);
+  if (state.mode !== 'main') return;
+  debTimer = setTimeout(async () => {
+    const res = await invoke('spotlight:query', { text: v }).catch(() => []);
+    state.chats = (res || []).map(c => ({ id: c.id, title: c.title || 'Untitled' }));
+    if (state.mode === 'main') render();
+  }, 160);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (state.mode === 'switchInstance') backToMain();
+    else { invoke('spotlight:hide'); reset(); }
+    return;
+  }
+  if (e.key === 'Backspace' && state.mode === 'switchInstance' && input.value === '') { backToMain(); return; }
+  if (e.key === 'ArrowDown') { state.sel = Math.min(state.sel + 1, state.items.length - 1); draw(); e.preventDefault(); }
+  else if (e.key === 'ArrowUp') { state.sel = Math.max(state.sel - 1, 0); draw(); e.preventDefault(); }
+  else if (e.key === 'Enter') { pick(); e.preventDefault(); }
+  else if (e.ctrlKey && (e.key === 'l' || e.key === 'L')) { runAction('livetoggle'); e.preventDefault(); }
+  else if (e.ctrlKey && /^[1-9]$/.test(e.key)) {
+    const i = Number(e.key) - 1;
+    if (state.items[i]) { state.sel = i; draw(); pick(); }
+    e.preventDefault();
+  }
+});
+
+liveBtn.onclick = () => runAction('livetoggle');
+
+on('spotlight:show', async () => {
+  state.mode = 'main';
+  state.chats = [];
+  input.value = '';
+  backToMainStatic();
+  document.getElementById('stage').classList.add('in');
+  setTimeout(() => input.focus(), 30);
+  const c = await invoke('config:get').catch(() => null);
+  if (c) { state.cfg = c; instancePill.textContent = shortHost(c.url); applyLive(); }
+  render(true);
+  invoke('spotlight:query', { text: '' }).then((rows) => {
+    if (state.mode === 'main') {
+      state.chats = (rows || []).map(c => ({ id: c.id, title: c.title || 'Untitled' }));
+      render();
+    }
+  }).catch(() => {});
+});
+
+on('spotlight:requestHide', () => {
+  document.getElementById('stage').classList.remove('in');
+});
+
+on('spotlight:state', (s) => {
+  if (!s) return;
+  state.liveActive = !!s.liveActive;
+  instancePill.textContent = shortHost(s.url || '');
+  statusDot.className = s.connected ? '' : 'off';
+  statusDot.title = s.connected ? 'Instance reachable' : 'Instance not reachable';
+  applyLive();
+});
+
+function applyLive() {
+  liveBtn.classList.toggle('active', !!state.liveActive);
+  const anyCmd = COMMANDS.find(c => c.id === 'live-toggle');
+  if (anyCmd) anyCmd.t = () => state.liveActive ? 'End Live Mode' : 'Start Live Mode';
+}
+
+function shortHost(u) { try { const x = new URL(u); return x.host; } catch (_) { return u; } }
+</script>
+</body>
+</html>

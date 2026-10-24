@@ -1,72 +1,144 @@
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
+const { app } = require('electron');
 
-// Path for persistent settings
-const userDataPath = process.app ? process.app.getPath('userData') : './data'; // Use process.app if available, fallback otherwise
-const configPath = path.join(userDataPath, 'config.json');
+let configPath = null;
+
+function resolveConfigPath() {
+    if (configPath) return configPath;
+    const userData = (app && app.getPath) ? app.getPath('userData') : path.join(__dirname, 'data');
+    try {
+        fsSync.mkdirSync(userData, { recursive: true });
+    } catch (_) {}
+    configPath = path.join(userData, 'config.json');
+    return configPath;
+}
 
 /**
- * Default configuration object structure.
+ * Default configuration. Everything the shell supports lives here.
  */
 const DEFAULT_CONFIG = {
+    version: 2,
+    // Active instance URL
     url: 'http://localhost:8080',
-    appName: 'Open WebUI Shell',
-    darkColor: '#00000000', 
-    symbolColor: '#FFFFFF', 
-    headerPaddingTop: '8px',
-    overlayHeight: 40,
-    iconPath: path.join(__dirname, 'icon.png'),
-    toggleShortcut: 'Alt+Space',
-    devToolsShortcut: 'Control+Alt+D', 
-    customCSS: \`
-        #sidebar-container, .navbar { padding-top: 10px !important; }
-        .user-menu-button { margin-right: 140px !important; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
-    \`,
+    // Saved instances: [{ name, url, lastUsed }]
+    instances: [],
+
+    // Global shortcuts
+    shortcuts: {
+        spotlight: 'Alt+Space',
+        toggleWindow: 'Control+Shift+Space',
+        liveMode: 'Control+Alt+M',
+        devTools: 'Control+Alt+D'
+    },
+
+    // Main window
+    window: {
+        width: 1400,
+        height: 1000,
+        minZoom: -0.5,
+        backdrop: 'acrylic', // 'acrylic' | 'mica' | 'none'
+        alwaysOnTop: false,
+        rememberSize: true
+    },
+
+    // Behavior
+    behavior: {
+        closeToTray: true,
+        launchAtLogin: false,
+        backgroundThrottling: true,
+        spotlightOnStartup: false,
+        showStatus: true
+    },
+
+    // Appearance
+    appearance: {
+        hideScrollbar: true,
+        titleBarOverlayHeight: 40,
+        customCSS: ''
+    },
+
+    // Advanced
+    advanced: {
+        chatUrlFormat: '/c/{id}',   // Open WebUI chat route style
+        scanPorts: [8080, 8000, 3000, 5000, 5173, 7860, 11434],
+        spotlightResults: 6
+    }
 };
 
-/**
- * Loads saved settings from disk or returns defaults if file not found/invalid.
- * @returns {Promise<Object>} The loaded configuration object.
- */
-async function loadSavedSettings() {
-    try {
-        let stats = await fs.stat(configPath);
-        if (!stats.isFile()) return DEFAULT_CONFIG; // Not a file, treat as missing
+function isPlainObject(v) {
+    return v !== null && typeof v === 'object' && !Array.isArray(v);
+}
 
-        const data = JSON.parse(await fs.readFile(configPath, 'utf8'));
-        // Merge loaded data with default config to ensure all properties exist
-        return { ...DEFAULT_CONFIG, ...data }; 
-    } catch (e) {
-        if (e.code === 'ENOENT') {
-            console.log("Config file not found. Using default settings.");
-            return DEFAULT_CONFIG;
-        } else {
-            console.error("Error loading configuration:", e);
-            return DEFAULT_CONFIG;
+function deepMerge(base, patch) {
+    const out = Array.isArray(base) ? [...base] : { ...base };
+    for (const key of Object.keys(patch || {})) {
+        const val = patch[key];
+        if (isPlainObject(val) && isPlainObject(out[key])) {
+            out[key] = deepMerge(out[key], val);
+        } else if (val !== undefined) {
+            out[key] = val;
         }
     }
+    return out;
 }
 
 /**
- * Saves the provided URL to disk, updating the configuration state.
- * @param {string} newUrl - The URL to save.
- * @returns {Promise<void>}
+ * Loads config from disk with deep-merge onto defaults (so new fields appear).
+ * @returns {Promise<object>}
  */
-async function saveSettings(newUrl) {
+async function loadConfig() {
+    const file = resolveConfigPath();
     try {
-        // Only persist the URL in this module's scope for simplicity
-        const data = JSON.stringify({ url: newUrl }, null, 4); // Use indentation for readability
-        await fs.writeFile(configPath, data);
-        console.log("Successfully saved application settings.");
+        const data = JSON.parse(await fs.readFile(file, 'utf8'));
+        if (!isPlainObject(data)) return structuredClone(DEFAULT_CONFIG);
+        // migrate older configs that only saved { url }
+        return deepMerge(DEFAULT_CONFIG, data);
     } catch (e) {
-        console.error("Failed to save settings:", e);
+        if (e.code !== 'ENOENT') console.error('[Config] Load failed:', e.message);
+        return structuredClone(DEFAULT_CONFIG);
     }
 }
 
-module.exports = {
-    loadSavedSettings,
-    saveSettings,
-    DEFAULT_CONFIG // Exporting defaults for consumers that might need them
-};
+/**
+ * Saves the full config atomically.
+ * @param {object} config
+ * @returns {Promise<boolean>}
+ */
+async function saveConfig(config) {
+    const file = resolveConfigPath();
+    const tmp = file + '.tmp';
+    try {
+        await fs.writeFile(tmp, JSON.stringify(config, null, 4), 'utf8');
+        await fs.rename(tmp, file);
+        return true;
+    } catch (e) {
+        console.error('[Config] Save failed:', e.message);
+        try { await fs.unlink(tmp); } catch (_) {}
+        return false;
+    }
+}
+
+/**
+ * Sanitizes a URL: adds scheme, trims, no trailing slash.
+ */
+function normalizeUrl(raw) {
+    let url = String(raw || '').trim();
+    if (!url) return null;
+    if (!/^https?:\/\//i.test(url)) url = 'http://' + url;
+    try {
+        const u = new URL(url);
+        u.pathname = u.pathname.replace(/\/+$/, '');
+        if (u.pathname === '/') u.pathname = '';
+        return u.origin + (u.pathname || '');
+    } catch (_) {
+        return null;
+    }
+}
+
+function registerMigration() {
+    if (process.app) process.app = null; // legacy stub safety
+}
+
+module.exports = { DEFAULT_CONFIG, loadConfig, saveConfig, deepMerge, normalizeUrl, getConfigPath: resolveConfigPath };

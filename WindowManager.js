@@ -1,163 +1,233 @@
-const { BrowserWindow, shell } = require('electron');
+const { BrowserWindow, nativeImage, shell } = require('electron');
 const path = require('path');
-const { DEFAULT_CONFIG } = require('./ConfigManager');
+const { deepMerge } = require('./ConfigManager');
+
+const DRAG_CSS = `
+    html, body { padding: 0 !important; margin: 0 !important; overflow: hidden !important; border-radius: 0 !important; }
+    header, nav, [role="navigation"], .top-nav, [class*="nav"]:not([class*="navbar-"]):not([class*="nav-"]),
+    .header-container, .navbar {
+        padding-right: 135px !important;
+        -webkit-app-region: drag !important;
+        box-sizing: border-box !important;
+    }
+    button, a, input, textarea, [role="button"], [role="combobox"], [role="menu"], [role="listbox"],
+    .sidebar, #sidebar, [data-sidebar] {
+        -webkit-app-region: no-drag !important;
+    }
+`;
 
 /**
- * Manages the creation and lifecycle of the main application window.
+ * Owns the main app window: loading the instance, zoom, CSS housekeeping,
+ * origin-safe external links, and close-to-tray behavior.
  */
 class WindowManager {
-    constructor(config) {
-        this.config = config;
-        this.mainWindow = null;
-        this.isReadyToShow = false; // Flag to handle initial show state
+    /**
+     * @param {object} deps
+     * @param {() => object} deps.getConfig
+     * @param {() => void} deps.onOpenSettings
+     * @param {(c:string)=>Promise<void>} deps.insertCSS
+     */
+    constructor(deps) {
+        this.deps = deps;
+        this.win = null;
+        this.quitting = false;
+        this._closeToTray = false;
     }
 
-    /**
-     * Creates and initializes the main browser window instance.
-     */
-    createWindow() {
-        const appIcon = require('electron').nativeImage.createFromPath(this.config.iconPath);
+    setCloseToTray(flag) {
+        this._closeToTray = !!flag;
+    }
 
-        this.mainWindow = new BrowserWindow({
-            width: 1400,
-            height: 1000,
-            minWidth: 800,   
-            minHeight: 600,
-            resizable: true, 
-            title: this.config.appName,
-            icon: appIcon,
-            show: false,
+    create() {
+        const cfg = this.deps.getConfig();
+        const icon = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
+        const w = cfg.window || {};
+
+        this.win = new BrowserWindow({
+            width: (w.rememberSize && w.width) || 1400,
+            height: (w.rememberSize && w.height) || 1000,
+            minWidth: 900,
+            minHeight: 620,
+            resizable: true,
+            title: cfg.appName || 'Open WebUI Shell',
+            icon,
+            show: process.env.SHELL_SMOKE ? true : false,
+            backgroundColor: '#00000000',
             frame: false,
             titleBarStyle: 'hidden',
-            thickFrame: true, 
+            thickFrame: true,
             titleBarOverlay: {
-                color: this.config.darkColor,
-                symbolColor: this.config.symbolColor,
-                height: this.config.overlayHeight 
+                color: '#00000000',
+                symbolColor: cfg.theme?.symbolColor || '#FFFFFF',
+                height: cfg.appearance?.titleBarOverlayHeight || 40
             },
-            backgroundMaterial: 'acrylic', 
+            backgroundMaterial: (w.backdrop === 'mica' || w.backdrop === 'acrylic') && !process.env.SHELL_SMOKE ? w.backdrop : undefined,
             webPreferences: {
                 nodeIntegration: false,
                 contextIsolation: true,
                 spellcheck: true,
-                backgroundThrottling: true 
+                backgroundThrottling: process.env.SHELL_SMOKE ? false : (cfg.behavior?.backgroundThrottling ?? true)
             }
         });
 
-        // Setup initial handlers
-        this.setupInitialHandlers();
-    }
+        this._applyAlwaysOnTop(!!w.alwaysOnTop);
 
-    /**
-     * Sets up event listeners for the window (closing, zoom, content loading).
-     */
-    setupInitialHandlers() {
-        const win = this.mainWindow;
-        if (!win) return;
-
-        // Handle Zoom Levels
-        win.webContents.on('before-input-event', (event, input) => {
-            if (input.control && input.key === '=') win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 0.5);
-            if (input.control && input.key === '-') win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 0.5);
-            if (input.control && input.key === '0') win.webContents.setZoomLevel(0);
+        // Zoom + app-level hotkeys inside page
+        this.win.webContents.on('before-input-event', (event, input) => {
+            if (input.type !== 'keyDown') return;
+            const wc = this.win?.webContents;
+            if (!wc) return;
+            if (input.control && input.key === '=') wc.setZoomLevel(wc.getZoomLevel() + 0.5);
+            else if (input.control && input.key === '-') wc.setZoomLevel(wc.getZoomLevel() - 0.5);
+            else if (input.control && input.key === '0') wc.setZoomLevel(0);
+            else if (input.control && (input.key === ',')) {
+                event.preventDefault();
+                this.openSettings();
+            }
         });
 
-        // Handle URL loading and security check
-        win.webContents.setWindowOpenHandler(({ url }) => {
+        // External links -> system browser
+        this.win.webContents.setWindowOpenHandler(({ url }) => {
+            let internal = false;
             try {
-                const targetOrigin = new URL(url).origin;
-                const appOrigin = new URL(this.config.url).origin;
-                if (targetOrigin !== appOrigin) {
-                    shell.openExternal(url); // Open external link if origin mismatch
-                    return { action: 'deny' };
-                }
-            } catch (e) {
-                shell.openExternal(url);
-                return { action: 'deny' };
-            }
-            return { action: 'allow' };
+                internal = new URL(url).origin === new URL(cfg.url).origin;
+            } catch (_) {}
+            if (!internal) shell.openExternal(url);
+            return { action: internal ? 'allow' : 'deny' };
         });
 
-        // Handle Window Closing
-        win.on('closed', () => {
-            this.mainWindow = null;
-            console.log('Main window closed.');
+        this.win.on('close', (e) => {
+            if (this.quitting || !this._closeToTray) return;
+            // minimize to tray instead of closing
+            e.preventDefault();
+            this.win.hide();
         });
 
-        // Handle Content Loaded (CSS injection)
-        win.webContents.on('did-finish-load', () => {
-            // Core CSS injections
-            win.webContents.insertCSS(`
-                html, body { padding: 0 !important; margin: 0 !important; overflow: hidden; border-radius: 0 !important; }
-                header, nav, [role="navigation"], .top-nav, [class*="nav"], .header-container {
-                    padding-right: 135px !important; 
-                    -webkit-app-region: drag !important;
-                    box-sizing: border-box !important;
-                }
-                button, a, input, textarea, [role="button"] { -webkit-app-region: no-drag !important; }
-            `);
+        this.win.on('closed', () => { this.win = null; });
 
-            // Custom/Modular CSS injection
-            if (this.config.customCSS) {
-                 win.webContents.insertCSS(sanitizeCSS(this.config.customCSS));
+        this.win.once('ready-to-show', () => {
+            this.win.show();
+        });
+
+        this.win.webContents.on('did-finish-load', () => {
+            const c = this.deps.getConfig();
+            this.injectCss(DRAG_CSS);
+            if (c.appearance?.hideScrollbar !== false) {
+                this.injectCss('::-webkit-scrollbar { width: 7px !important; height: 7px !important; } '
+                    + '::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.35) !important; border-radius: 4px !important; } '
+                    + '::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.55) !important; }');
             }
+            if (c.appearance?.customCSS) {
+                this.injectCss(String(c.appearance.customCSS));
+            }
+        });
 
-            console.log("Window content loaded and styling applied.");
+        if (w.rememberSize) {
+            const save = () => {
+                try {
+                    const cur = this.deps.getConfig();
+                    const [width, height] = this.win.getSize();
+                    cur.window.width = width;
+                    cur.window.height = height;
+                    this.deps.persistThrottled(cur);
+                } catch (_) {}
+            };
+            let t = null;
+            this.win.on('resized', () => { clearTimeout(t); t = setTimeout(save, 700); });
+        }
+
+        return this.win;
+    }
+
+    applyConfigLive(cfg) {
+        if (!this.win || this.win.isDestroyed()) return;
+        this._applyAlwaysOnTop(!!cfg.window?.alwaysOnTop);
+        this.win.webContents.setWindowOpenHandler(({ url }) => {
+            let internal = false;
+            try {
+                internal = new URL(url).origin === new URL(cfg.url).origin;
+            } catch (_) {}
+            if (!internal) shell.openExternal(url);
+            return { action: internal ? 'allow' : 'deny' };
         });
     }
 
-    /**
-     * Loads the initial URL into the window. This should be called after creation.
-     * @param {string} url - The URL to load.
-     */
-    loadURL(url) {
-        if (this.mainWindow && !this.isReadyToShow) {
-            console.log(`Loading initial URL: ${url}`);
-            this.mainWindow.loadURL(url);
-        } else if (!this.mainWindow) {
-             // If window doesn't exist yet, we can't load it, but we should still track the config change
-             this.config.url = url; 
+    injectCss(css) {
+        try { this.win?.webContents.insertCSS(css); } catch (_) {}
+    }
+
+    _applyAlwaysOnTop(on) {
+        if (!this.win || this.win.isDestroyed()) return;
+        this.win.setAlwaysOnTop(on, 'floating');
+    }
+
+    navigate(url) {
+        if (!this.win) this.create();
+        this.win.loadURL(url);
+        this.win.show();
+        this.win.focus();
+    }
+
+    navigateToChat(chatId) {
+        const cfg = this.deps.getConfig();
+        const base = cfg.url.replace(/\/+$/, '');
+        const fmt = cfg.advanced?.chatUrlFormat || '/c/{id}';
+        const url = base + fmt.replace('{id}', encodeURIComponent(chatId));
+        this.navigate(url);
+    }
+
+    newChat() {
+        const cfg = this.deps.getConfig();
+        this.navigate(cfg.url.replace(/\/+$/, '') + '/');
+    }
+
+    openVoiceCall(chatId = null) {
+        const cfg = this.deps.getConfig();
+        const base = cfg.url.replace(/\/+$/, '');
+        // Open WebUI enables its native voice call overlay via ?call=true
+        const url = chatId
+            ? base + (cfg.advanced?.chatUrlFormat || '/c/{id}').replace('{id}', encodeURIComponent(chatId)) + '?call=true'
+            : base + '/?call=true';
+        this.navigate(url);
+    }
+
+    openSettings() {
+        this.deps.spawnSettings?.();
+    }
+
+    reload() {
+        try { this.win?.reload(); } catch (_) {}
+    }
+
+    isFocused() {
+        return !!this.win && !this.win.isDestroyed() && this.win.isFocused();
+    }
+
+    toggleVisible() {
+        if (!this.win || this.win.isDestroyed()) {
+            this.create();
+            return;
+        }
+        if (this.win.isVisible() && this.win.isFocused()) {
+            this.win.hide();
+        } else {
+            this.win.show();
+            this.win.focus();
         }
     }
 
-    /**
-     * Makes the window visible and focuses on it.
-     */
-    showWindow() {
-        if (this.mainWindow && !this.isReadyToShow) {
-            this.mainWindow.show();
-            this.mainWindow.focus();
-            this.isReadyToShow = true; // Mark as shown after successful call
-        } else if (this.mainWindow) {
-             this.mainWindow.show();
-             this.mainWindow.focus();
-        }
+    /** Executes code in the page (used for session-authenticated API calls). */
+    executeJs(code) {
+        const wc = this.win && !this.win.isDestroyed() ? this.win.webContents : null;
+        if (!wc) return Promise.resolve(null);
+        return wc.executeJavaScript(code, true).catch(() => null);
     }
 
-    /**
-     * Handles the initial window setup logic, including load URL and setting up readiness flag.
-     */
-    async initialize(configUrl) {
-        // 1. Create the window structure first
-        this.createWindow();
-        
-        // 2. Set up specific window handlers (like zoom on input events)
-        const win = this.mainWindow;
-        win.webContents.on('before-input-event', (event, input) => {
-            if (input.control && input.key === '=') win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 0.5);
-            if (input.control && input.key === '-') win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 0.5);
-            if (input.control && input.key === '0') win.webContents.setZoomLevel(0);
-        });
-
-        // Load the URL after window is ready to show, but only if not already done by loadURL call
-        this.loadURL(configUrl); 
+    destroy() {
+        this.quitting = true;
+        try { this.win?.destroy(); } catch (_) {}
+        this.win = null;
     }
 }
-
-/** Simple utility to clean up CSS strings (basic example) */
-function sanitizeCSS(css) {
-    return css.replace(/[\r\n]/g, ' ').trim();
-}
-
 
 module.exports = WindowManager;

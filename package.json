@@ -1,40 +1,39 @@
 {
-"name": "open-webui-shell",
-"version": "1.0.0",
-"description": "Desktop shell for Open WebUI",
-"main": "main.js",
-"scripts": {
-"start": "electron .",
-"dist": "electron-builder --win"
-},
-"repository": {
-"type": "git",
-"url": "git+https://www.google.com/search?q=https://github.com/YOUR_USERNAME/open-webui-shell.git"
-},
-"author": "Khalid Jehani",
-"license": "MIT",
-"devDependencies": {
-"electron": "^31.0.0",
-"electron-builder": "^24.13.3"
-},
-"build": {
-"appId": "ai.openwebui.shell",
-"productName": "Open WebUI Shell",
-"win": {
-"target": [
-"nsis"
-],
-"icon": "icon.png"
-},
-"nsis": {
-"oneClick": true,
-"allowToChangeInstallationDirectory": false,
-"createDesktopShortcut": true,
-"createStartMenuShortcut": true,
-"shortcutName": "Open WebUI Shell"
-},
-"directories": {
-"output": "dist"
-}
-}
+  "name": "open-webui-shell",
+  "version": "2.0.0",
+  "description": "Premium desktop shell for Open WebUI — Spotlight command bar, Live voice mode, multi-instance management, native Windows 11 integration",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "smoke": "cross-env SHELL_SMOKE=1 electron .",
+    "dist": "electron-builder --win"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IAG-Software/open-webui-shell.git"
+  },
+  "author": "Khalid Jehani",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "ai.openwebui.shell",
+    "productName": "Open WebUI Shell",
+    "win": {
+      "target": ["nsis"],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Open WebUI Shell"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
 }
