@@ -139,6 +139,39 @@ class WindowManager {
         return this.win;
     }
 
+    /** Destroys and re-creates the window (for DWM backdrop material changes). */
+    recreate(url) {
+        try { this.win?.destroy(); } catch (_) {}
+        this.win = null;
+        this.quitting = false;
+        this.create();
+        if (url) {
+            try { this.win.loadURL(url); } catch (_) {}
+        }
+        return this.win;
+    }
+
+    /** Re-applies chrome + custom CSS to the current page without reloading. */
+    applyAppearance(cfg) {
+        if (!this.win || this.win.isDestroyed()) return;
+        this.injectCss(DRAG_CSS.replace(/[\r\n]/g, ' '));
+        if (cfg.appearance?.hideScrollbar !== false) {
+            this.injectCss('::-webkit-scrollbar { width: 7px !important; height: 7px !important; } '
+                + '::-webkit-scrollbar-thumb { background: rgba(127,127,127,0.35) !important; border-radius: 4px !important; } '
+                + '::-webkit-scrollbar-thumb:hover { background: rgba(127,127,127,0.55) !important; }');
+        }
+        if (cfg.appearance?.customCSS) {
+            this.injectCss(String(cfg.appearance.customCSS).replace(/[\r\n]/g, ' '));
+        }
+        try {
+            this.win.setTitleBarOverlay({
+                color: '#00000000',
+                symbolColor: cfg.theme?.symbolColor || '#FFFFFF',
+                height: cfg.appearance?.titleBarOverlayHeight || 40
+            });
+        } catch (_) {}
+    }
+
     applyConfigLive(cfg) {
         if (!this.win || this.win.isDestroyed()) return;
         this._applyAlwaysOnTop(!!cfg.window?.alwaysOnTop);

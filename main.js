@@ -62,6 +62,11 @@ async function bootstrap() {
         broadcaster: (ch, payload) => broadcaster(ch, payload)
     });
 
+    // keep the connection dot honest each time the spotlight opens + every 20s
+    const baseShow = spotlight.show.bind(spotlight);
+    spotlight.show = async () => { await baseShow(); updateAlive(); };
+    setInterval(updateAlive, 20000);
+
     settingsWindow = new SettingsWindow({ getConfig: () => config, isQuitting: () => isQuitting });
 
     live = new LiveModeManager({
@@ -172,18 +177,26 @@ function setupIpc() {
     // config
     ipcMain.handle('config:get', () => ({ ...config, configPath: getConfigPath() }));
     ipcMain.handle('config:set', async (_e, patch) => {
-        // re-register shortcuts if needed
+        const previous = config;
         const shortcutsChanged = JSON.stringify(patch?.shortcuts) !== JSON.stringify(config.shortcuts);
+        const backdropChanged = !!patch?.window?.backdrop && patch.window.backdrop !== config.window?.backdrop;
+        const urlChanged = !!patch?.url && patch.url !== config.url;
+        const appearanceChanged = JSON.stringify(patch?.appearance ?? null) !== JSON.stringify(config.appearance ?? null);
         config = deepMerge(config, patch);
         await saveConfig(config);
         if (shortcutsChanged) registerShortcuts();
         applyLoginItem();
         windowManager?.applyConfigLive(config);
         windowManager?.setCloseToTray(config.behavior?.closeToTray !== false);
+        if (appearanceChanged && !backdropChanged) windowManager?.applyAppearance(config);
+        if (backdropChanged) windowManager?.recreate(config.url);
+        if (backdropChanged && urlChanged) windowManager?.navigate(config.url);
         broadcaster('config:changed', config);
         tray?.rebuild();
+        updateAlive();
         return true;
     });
+    ipcMain.handle('window:close', () => { settingsWindow.win?.close(); return true; });
     ipcMain.handle('config:reset', async () => {
         const keepUrl = config.url;
         const keepInstances = config.instances;

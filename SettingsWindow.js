@@ -13,7 +13,7 @@ class SettingsWindow {
         this.win = null;
     }
 
-    show() {
+    async show() {
         if (this.win && !this.win.isDestroyed()) {
             this.win.show();
             this.win.focus();
@@ -52,8 +52,7 @@ class SettingsWindow {
         });
 
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'ui', 'settings.html'), 'utf8');
-            this.win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+            await this.win.loadFile(path.join(__dirname, 'ui', 'settings.html'));
         } catch (e) {
             console.error('[Settings] Failed to load html:', e);
         }

@@ -5,78 +5,101 @@
 <title>Settings</title>
 <style>
   :root {
-    --bg: #0e0e12; --card: rgba(255,255,255,.045); --card2: rgba(255,255,255,.075);
-    --stroke: rgba(255,255,255,.09); --txt: #ececec; --muted: #9b9ba3;
-    --accent: #6ea8ff; --danger: #ff5f57; --radius: 12px;
+    --bg: #0d0d11;
+    --panel: rgba(255,255,255,.038);
+    --panel2: rgba(255,255,255,.06);
+    --stroke: rgba(255,255,255,.075);
+    --txt: #ededf0; --muted: #9a9aa4;
+    --accent: #7aa5ff; --accent2: #a06bff;
+    --danger: #ff5f57; --ok: #46d888;
+    --radius: 14px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   html, body { height:100%; overflow:hidden; }
-  body { background: radial-gradient(1200px 500px at 20% -10%, rgba(110,168,255,.07), transparent), var(--bg);
-         color: var(--txt); font-family: 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; font-size: 13.5px; }
-  #titlebar { height: 38px; -webkit-app-region: drag; display:flex; align-items:center; padding: 0 14px; color: var(--muted); font-size: 12px; position: relative; }
-  #titlebar::after { content:''; position:absolute; bottom:0; left:0; right:0; height:1px; background: var(--stroke); }
+  body {
+    background:
+      radial-gradient(900px 420px at 12% -12%, rgba(122,165,255,.09), transparent 60%),
+      radial-gradient(800px 400px at 95% 0%, rgba(160,107,255,.07), transparent 55%),
+      var(--bg);
+    color: var(--txt); font-family: 'Segoe UI Variable Text','Segoe UI',system-ui,sans-serif; font-size: 13.5px;
+  }
+  #titlebar { height: 40px; -webkit-app-region: drag; display:flex; align-items:center; justify-content:center; color: var(--muted); font-size: 12px; padding-right: 130px; position: relative; user-select:none; }
 
-  #app { display: grid; grid-template-columns: 220px 1fr; height: calc(100% - 39px); }
+  #app { display: grid; grid-template-columns: 236px 1fr; height: calc(100% - 40px); }
 
-  nav { border-right: 1px solid var(--stroke); padding: 14px 10px; overflow-y:auto; }
-  nav .navbtn { display:flex; align-items:center; gap:10px; padding: 9px 12px; border-radius: 9px; cursor:pointer; color: var(--muted); margin-bottom: 2px; border:1px solid transparent; }
-  nav .navbtn:hover { background: var(--card); color: var(--txt); }
-  nav .navbtn.act { background: var(--card2); color: var(--txt); border-color: var(--stroke); }
-  nav .foot { margin-top: 18px; padding: 10px 12px; font-size: 11px; color: var(--muted); line-height: 1.6; }
+  /* ── sidebar ─────────────────────────── */
+  nav { border-right: 1px solid var(--stroke); padding: 18px 12px 14px; display:flex; flex-direction:column; overflow-y:auto; background: rgba(0,0,0,.14); }
+  #brand { display:flex; align-items:center; gap: 11px; padding: 4px 8px 18px; }
+  #brand img { width: 34px; height: 34px; border-radius: 9px; }
+  #brand .n { font-weight: 600; font-size: 13.5px; }
+  #brand .v { font-size: 10.5px; color: var(--muted); }
+  .navbtn { display:flex; align-items:center; gap: 11px; padding: 9px 13px; border-radius: 10px; cursor:pointer; color: var(--muted); margin-bottom: 2px; position:relative; transition: all .15s; letter-spacing:.1px; }
+  .navbtn svg { width: 16px; height: 16px; opacity:.85; }
+  .navbtn:hover { background: var(--panel); color: var(--txt); }
+  .navbtn.act { background: var(--panel2); color: var(--txt); border: 1px solid var(--stroke); }
+  .navbtn.act svg { color: var(--accent); opacity: 1; }
+  .navbtn.act::before { content:''; position:absolute; left:-12px; top: 25%; height: 50%; width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), var(--accent2)); }
+  nav .foot { margin-top: auto; padding: 12px 8px 2px; font-size: 10.5px; color: var(--muted); line-height: 1.7; border-top: 1px solid var(--stroke); }
 
-  main { padding: 26px 30px 40px; overflow-y:auto; }
-  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
-  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 20px; }
+  /* ── content ─────────────────────────── */
+  main { padding: 30px 38px 46px; overflow-y:auto; }
+  main::-webkit-scrollbar { width: 8px; }
+  main::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 4px; }
+  .wrap { max-width: 660px; }
+  h1 { font-size: 21px; font-weight: 650; margin-bottom: 3px; letter-spacing:.1px; }
+  .sub { color: var(--muted); font-size: 12.5px; margin-bottom: 22px; }
   section { display:none; }
-  section.act { display:block; animation: fade .18s ease; }
-  @keyframes fade { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform:none;} }
+  section.act { display:block; animation: fade .16s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(5px);} to { opacity:1; transform:none;} }
 
-  .card { background: var(--card); border: 1px solid var(--stroke); border-radius: var(--radius); margin-bottom: 14px; overflow:hidden; }
-  .card > .head { padding: 10px 16px; font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--stroke); }
-  .row { display:flex; align-items:center; gap:12px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,.04); min-height: 52px; }
+  .card { background: var(--panel); border: 1px solid var(--stroke); border-radius: var(--radius); margin-bottom: 14px; overflow:hidden; }
+  .card > .head { padding: 9px 16px; font-size: 10.5px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--stroke); background: rgba(255,255,255,.015); }
+  .row { display:flex; align-items:center; gap:12px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.035); min-height: 52px; transition: background .12s; }
   .row:last-child { border-bottom: none; }
+  .row:hover { background: rgba(255,255,255,.018); }
   .row .g { flex:1; min-width: 0; }
-  .row .name { font-size: 13px; }
+  .row .name { font-size: 13px; font-weight: 500; }
   .row .desc { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
 
-  .switch { position: relative; width: 42px; height: 22px; border-radius: 999px; background: rgba(255,255,255,.12); cursor: pointer; border: 1px solid var(--stroke); transition: all .18s; flex:none; }
-  .switch::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition: all .18s cubic-bezier(.2,.9,.3,1.4); }
-  .switch.on { background: var(--accent); border-color: transparent; }
-  .switch.on::after { left: 22px; }
+  .switch { position: relative; width: 40px; height: 21px; border-radius: 999px; background: rgba(255,255,255,.10); cursor: pointer; border: 1px solid var(--stroke); transition: all .18s; flex:none; }
+  .switch::after { content:''; position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%; background:#fff; transition: all .18s cubic-bezier(.2,.9,.3,1.4); }
+  .switch.on { background: var(--accent); border-color: rgba(122,165,255,.4); box-shadow: 0 0 10px rgba(122,165,255,.25); }
+  .switch.on::after { left: 21px; }
 
   select, input[type=text] {
-    background: rgba(0,0,0,.25); color: var(--txt); border: 1px solid var(--stroke); border-radius: 8px;
-    padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit;
+    background: rgba(0,0,0,.3); color: var(--txt); border: 1px solid var(--stroke); border-radius: 9px;
+    padding: 7px 10px; font-size: 12.5px; outline: none; font-family: inherit; transition: border-color .15s;
   }
-  select:focus, input[type=text]:focus { border-color: var(--accent); }
-  textarea { background: rgba(0,0,0,.25); color: #dcdcdc; border: 1px solid var(--stroke); border-radius: 8px; padding: 10px; font-size: 12px; font-family: 'Cascadia Code', Consolas, monospace; outline: none; width: 100%; min-height: 110px; resize: vertical; }
-  textarea:focus { border-color: var(--accent); }
-  .btn { background: var(--card2); color: var(--txt); border: 1px solid var(--stroke); border-radius: 8px; padding: 7px 14px; font-size: 12.5px; cursor: pointer; white-space: nowrap; }
-  .btn:hover { border-color: rgba(255,255,255,.25); }
-  .btn.primary { background: var(--accent); border-color: transparent; color: #06121f; font-weight: 600; }
-  .btn.primary:hover { filter: brightness(1.1); }
+  select:focus, input[type=text]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(122,165,255,.12); }
+  textarea { background: rgba(0,0,0,.3); color: #dcdce0; border: 1px solid var(--stroke); border-radius: 10px; padding: 11px; font-size: 12px; font-family: 'Cascadia Code', Consolas, monospace; outline: none; width: 100%; min-height: 120px; resize: vertical; line-height: 1.55; }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(122,165,255,.12); }
+  .btn { background: var(--panel2); color: var(--txt); border: 1px solid var(--stroke); border-radius: 9px; padding: 7px 15px; font-size: 12.5px; cursor: pointer; white-space: nowrap; transition: all .15s; }
+  .btn:hover { border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.09); }
+  .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); border: none; color: #fff; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.12); box-shadow: 0 3px 14px rgba(122,165,255,.3); }
   .btn.danger { color: var(--danger); }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .kbd { border:1px solid var(--stroke); background: rgba(0,0,0,.3); border-radius: 7px; padding: 8px 14px; font-size: 12.5px; font-family: 'Cascadia Code',Consolas,monospace; min-width: 190px; text-align:center; cursor: pointer; transition: border-color .15s; }
-  .kbd.record { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px rgba(110,168,255,.15); }
+  .btn:disabled { opacity: .45; cursor: default; }
 
-  .inst { display:flex; align-items:center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; }
-  .inst:hover { background: var(--card); }
-  .inst .radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.25); flex:none; display:grid; place-items:center; }
-  .inst.sel .radio { border-color: var(--accent); }
-  .inst.sel .radio::after { content:''; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
-  .inst .t { font-size: 13px; }
+  .kbd { border:1px solid var(--stroke); background: rgba(0,0,0,.32); border-radius: 9px; padding: 8px 15px; font-size: 12.5px; font-family: 'Cascadia Code',Consolas,monospace; min-width: 200px; text-align:center; cursor: pointer; transition: border-color .15s, color .15s; }
+  .kbd:hover { border-color: rgba(255,255,255,.25); }
+  .kbd.record { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 3px rgba(122,165,255,.14); }
+  .kbd.conflict { border-color: var(--danger); color: var(--danger); }
+
+  .inst { display:flex; align-items:center; gap: 11px; padding: 11px 16px; border-bottom: 1px solid rgba(255,255,255,.04); cursor: pointer; transition: background .12s; }
+  .inst:hover { background: rgba(255,255,255,.02); }
+  .inst.sel { background: rgba(122,165,255,.05); }
+  .inst .radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.22); flex:none; display:grid; place-items:center; transition: all .15s; }
+  .inst.sel .radio { border-color: var(--accent); box-shadow: 0 0 8px rgba(122,165,255,.3); }
+  .inst.sel .radio::after { content:''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+  .inst .t { font-size: 13px; font-weight: 500; }
   .inst .u { font-size: 11px; color: var(--muted); }
-  .inst .del { margin-left:auto; opacity:.35; cursor: pointer; font-size: 14px; padding: 2px 8px; }
+  .inst .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 6px rgba(70,216,136,.6); margin-left: auto; }
+  .inst .del { opacity:.3; cursor: pointer; font-size: 13px; padding: 3px 9px; }
   .inst .del:hover { opacity: 1; color: var(--danger); }
-  .found { color: #48e08a; }
-  .checking { color: var(--muted); animation: pulse 1s infinite; }
-  @keyframes pulse { 50% { opacity: .4; } }
 
-  #toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%) translateY(60px); background: rgba(20,20,26,.9); border:1px solid var(--stroke); padding: 9px 18px; border-radius: 10px; font-size: 12.5px; transition: transform .25s cubic-bezier(.2,.9,.3,1.3); z-index: 50; }
+  #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(64px); background: rgba(22,22,28,.92); border:1px solid var(--stroke); padding: 9px 18px; border-radius: 10px; font-size: 12.5px; transition: transform .25s cubic-bezier(.2,.9,.3,1.3); backdrop-filter: blur(8px); z-index: 50; box-shadow: 0 8px 24px rgba(0,0,0,.4); }
   #toast.show { transform: translateX(-50%) translateY(0); }
-  .about-icons { display:flex; align-items:center; gap: 16px; margin: 8px 0 18px; }
-  .about-icons img { width: 64px; height: 64px; border-radius: 14px; }
+  .about-icons img { width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 6px 24px rgba(122,165,255,.18); }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
 </style>
@@ -85,16 +108,18 @@
 <div id="titlebar"><span style="margin-left:4px">Open WebUI Shell — Settings</span></div>
 <div id="app">
   <nav>
-    <div class="navbtn act" data-s="general">⬡&nbsp; General</div>
-    <div class="navbtn" data-s="connection">⇄&nbsp; Connection</div>
-    <div class="navbtn" data-s="appearance">◐&nbsp; Appearance</div>
-    <div class="navbtn" data-s="shortcuts">⌘&nbsp; Shortcuts</div>
-    <div class="navbtn" data-s="advanced">⚙&nbsp; Advanced</div>
-    <div class="navbtn" data-s="about">◎&nbsp; About</div>
-    <div class="foot">Open WebUI Shell<br/><span id="ver"></span></div>
+    <div id="brand"><img src="../icon.png" alt="" onerror="this.style.display='none'" /><div><div class="n">Open WebUI Shell</div><div class="v" id="ver"></div></div></div>
+    <div class="navbtn act" data-s="general"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3"/><path d="M1 14h6M9 8h6M17 16h6"/></svg>&nbsp;General</div>
+    <div class="navbtn" data-s="connection"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg>&nbsp;Connection</div>
+    <div class="navbtn" data-s="appearance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none" opacity=".35"/></svg>&nbsp;Appearance</div>
+    <div class="navbtn" data-s="shortcuts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M10 14h4"/></svg>&nbsp;Shortcuts</div>
+    <div class="navbtn" data-s="advanced"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>&nbsp;Advanced</div>
+    <div class="navbtn" data-s="about"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>&nbsp;About</div>
+    <div class="foot">Built by Khalid Jehani<br/>MIT License</div>
   </nav>
 
   <main>
+    <div class="wrap">
     <!-- GENERAL -->
     <section class="act" data-s="general">
       <h1>General</h1><div class="sub">Everyday shell behavior</div>
@@ -124,7 +149,7 @@
 
     <!-- APPEARANCE -->
     <section data-s="appearance">
-      <h1>Appearance</h1><div class="sub">Make the shell yours</div>
+      <h1>Appearance</h1><div class="sub">Make the shell yours — changes apply live</div>
       <div class="card"> <div class="head">Window</div>
         <div class="row"><div class="g"><div class="name">Backdrop material</div><div class="desc">Windows 11 translucency behind the shell UI.</div></div>
           <select data-k="window.backdrop"><option value="acrylic">Acrylic blur</option><option value="mica">Mica (subtle)</option><option value="none">None</option></select>
@@ -135,9 +160,9 @@
       </div>
       <div class="card"> <div class="head">Custom CSS</div>
         <div class="row" style="display:block;">
-          <div class="desc" style="margin-bottom:8px">Injected into the web UI. Great for hiding elements or tweaking the theme.</div>
+          <div class="desc" style="margin-bottom:9px">Injected into the web UI. Ctrl+Enter to apply.</div>
           <textarea id="cssText" spellcheck="false" placeholder="#sidebar { width: 260px !important; }"></textarea>
-          <div style="margin-top:10px; display:flex; gap:8px; justify-content:flex-end;">
+          <div style="margin-top:11px; display:flex; gap:8px; justify-content:flex-end;">
             <button class="btn" id="cssRevert">Revert</button>
             <button class="btn primary" id="cssApply">Apply CSS</button>
           </div>
@@ -154,14 +179,14 @@
         <div class="row"><div class="g"><div class="name">Live Mode</div><div class="desc">Start / end the floating voice call.</div></div><div class="kbd" data-k="liveMode"></div></div>
         <div class="row"><div class="g"><div class="name">Developer Tools</div><div class="desc">Open dev tools for the web UI.</div></div><div class="kbd" data-k="devTools"></div></div>
       </div>
-      <div class="sub" style="margin-top:10px">Inside Spotlight: <b>Ctrl+L</b> toggles Live Mode · type to search chats · <b>↓/↑</b> and <b>Enter</b> to run.</div>
+      <div class="sub" style="margin-top:12px">Inside Spotlight: <b>Ctrl+L</b> toggles Live · type to search chats · <b>↓/↑</b> and <b>Enter</b> to run.</div>
     </section>
 
     <!-- ADVANCED -->
     <section data-s="advanced">
       <h1>Advanced</h1><div class="sub">For brave people</div>
       <div class="card"> <div class="head">Search</div>
-        <div class="row"><div class="g"><div class="name">Chat URL format</div><div class="desc">How deep links to chats are built. Open WebUI 0.5+ uses /c/{id}.</div></div><input type="text" data-k="advanced.chatUrlFormat" style="width:150px; font-family:Cascadia Code, Consolas, monospace" /></div>
+        <div class="row"><div class="g"><div class="name">Chat URL format</div><div class="desc">How deep links to chats are built. Modern Open WebUI uses /c/{id}.</div></div><input type="text" data-k="advanced.chatUrlFormat" style="width:150px; font-family:'Cascadia Code',Consolas,monospace" /></div>
         <div class="row"><div class="g"><div class="name">Spotlight result limit</div><div class="desc">Max chat results shown per query.</div></div><input type="text" data-k="advanced.spotlightResults" style="width:70px; text-align:center" /></div>
       </div>
       <div class="card"> <div class="head">Danger zone</div>
@@ -174,18 +199,19 @@
     <section data-s="about">
       <h1>About</h1><div class="sub"></div>
       <div class="card"><div class="head">Open WebUI Shell</div>
-        <div class="row" style="display:block; padding: 18px 20px;">
-          <div class="about-icons"><img src="../icon.png" alt="icon" onerror="this.style.display='none'" /></div>
-          <div style="line-height:1.8; color: var(--muted); font-size: 12.5px;">
-            A premium Electron desktop experience for <b>Open WebUI</b> — Spotlight bar, Live voice mode, instance management and native Windows 11 integration.<br/><br/>
-            Built by <b>Khalid Jehani</b> · <span id="aboutVer"></span><br/><br/>
-            <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://github.com/IAG-Software/open-webui-shell'}); return false;">GitHub repository ↗</a> ·
+        <div class="row" style="display:block; padding: 20px;">
+          <div class="about-icons" style="margin-bottom:14px"><img src="../icon.png" alt="icon" onerror="this.style.display='none'" /></div>
+          <div style="line-height:1.85; color: var(--muted); font-size: 12.5px;">
+            A premium Electron desktop experience for <b style="color:var(--txt)">Open WebUI</b> — Spotlight bar, Live voice mode, instance management and native Windows 11 integration.<br/><br/>
+            Built by <b style="color:var(--txt)">Khalid Jehani</b> · <span id="aboutVer"></span><br/><br/>
+            <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://github.com/IAG-Software/open-webui-shell'}); return false;">GitHub ↗</a> ·
             <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://openwebui.com'}); return false;">Open WebUI ↗</a><br/><br/>
-            MIT License · Open WebUI content and branding remain subject to the <a href="#" onclick="shellAPI.invoke('actions:openInBrowser',{url:'https://raw.githubusercontent.com/open-webui/open-webui/main/LICENSE'}); return false;">Open WebUI license</a>. Not affiliated with Open WebUI.
+            MIT License · Rendered Open WebUI content remains subject to the Open WebUI License. Not affiliated with Open WebUI.
           </div>
         </div>
       </div>
     </section>
+    </div>
   </main>
 </div>
 <div id="toast"></div>

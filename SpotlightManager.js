@@ -79,13 +79,8 @@ class SpotlightManager {
         });
 
         try {
-            const html = fs.readFileSync(path.join(__dirname, 'ui', 'spotlight.html'), 'utf8');
-            this._loaded = new Promise((resolve) => {
-                const wc = this.win.webContents;
-                if (wc.isLoading()) wc.once('did-finish-load', () => resolve());
-                else resolve();
-            });
-            this.win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+            this._loaded = this.win.loadFile(path.join(__dirname, 'ui', 'spotlight.html'));
+            this._loaded.catch((e) => console.error('[Spotlight] Failed to load overlay html:', e));
         } catch (e) {
             console.error('[Spotlight] Failed to load overlay html:', e);
         }

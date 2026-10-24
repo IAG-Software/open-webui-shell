@@ -83,7 +83,7 @@ async function checkAlive(url, timeoutMs = 700) {
     try {
         // force IPv4 for 'localhost' (many local servers bind 127.0.0.1 only)
         let target = url.replace(/\/+$/, '');
-        target = target.replace(/^(http:\/\/)localhost(?=:)/i, '$1127.0.0.1');
+        target = target.replace(/^(http:\/\/)localhost(?=:)/i, (_, proto) => proto + '127.0.0.1');
         const res = await httpGet(target + '/api/version', timeoutMs);
         return !!(res && res.status === 200 && /version/i.test(res.body));
     } catch (_) {
