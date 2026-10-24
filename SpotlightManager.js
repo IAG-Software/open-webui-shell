@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const SPOTLIGHT_WIDTH = Math.round(680);
-const SPOTLIGHT_HEIGHT = Math.round(460);
+const SPOTLIGHT_HEIGHT = Math.round(230);
 
 /**
  * The Spotlight bar: a floating, frameless, always-on-top, translucent
@@ -18,15 +18,33 @@ class SpotlightManager {
         this.win = null;
         this._hiding = false;
         this._closingForReal = false;
+        this.targetHeight = SPOTLIGHT_HEIGHT;
+    }
+
+    setHeight(h) {
+        const height = Math.max(150, Math.min(620, Math.round(h)));
+        if (Math.abs(height - this.targetHeight) < 8) return;
+        this.targetHeight = height;
+        try {
+            if (this.win && !this.win.isDestroyed() && this.win.isVisible()) {
+                const b = this.win.getBounds();
+                this.win.setBounds({ x: b.x, y: b.y, width: b.width, height });
+            }
+        } catch (_) {}
     }
 
     createWindow() {
+        // acrylic requires Win11 22H2+ (build 22621); transparent windows can't use it
+        const acrylic = this.deps.acrylicSupported?.() && !process.env.SHELL_SMOKE;
         this.win = new BrowserWindow({
             width: SPOTLIGHT_WIDTH,
-            height: SPOTLIGHT_HEIGHT,
+            height: this.targetHeight,
             frame: false,
-            transparent: process.env.SHELL_SMOKE ? false : true, // transparency + capturePage don't mix offscreen; dev only
-            backgroundColor: process.env.SHELL_SMOKE ? '#15151a' : '#00000000',
+            transparent: false,
+            backgroundMaterial: acrylic ? 'acrylic' : undefined,
+            backgroundColor: acrylic ? '#00000000' : (process.env.SHELL_SMOKE ? '#15151a' : 'rgba(15,15,19,0.96)'),
+            thickFrame: true,
+            hasShadow: true,
             resizable: false,
             maximizable: false,
             minimizable: false,
@@ -35,7 +53,6 @@ class SpotlightManager {
             show: false,
             alwaysOnTop: true,
             center: false,
-            hasShadow: false,
             acceptFocus: true,
             title: 'Spotlight',
             webPreferences: {
@@ -91,9 +108,9 @@ class SpotlightManager {
             const wa = display.workArea;
             w.setBounds({
                 x: Math.round(wa.x + (wa.width - SPOTLIGHT_WIDTH) / 2),
-                y: Math.round(wa.y + Math.min(140, wa.height * 0.16)),
+                y: Math.round(wa.y + Math.min(160, wa.height * 0.2)),
                 width: SPOTLIGHT_WIDTH,
-                height: SPOTLIGHT_HEIGHT
+                height: this.targetHeight
             });
         } catch (_) {
             w.center();

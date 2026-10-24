@@ -3,7 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Allowlisted IPC surface — everything the renderer windows may call.
 const INVOKE_CHANNELS = new Set([
     'config:get', 'config:set', 'config:reset', 'config:openFile',
-    'spotlight:hide', 'spotlight:query', 'spotlight:run',
+    'spotlight:hide', 'spotlight:query', 'spotlight:run', 'spotlight:resize',
     'actions:main', 'actions:newChat', 'actions:reload', 'actions:openSettings',
     'actions:openInBrowser', 'actions:toggleAlwaysOnTop', 'actions:openDevTools',
     'actions:toggleLive', 'actions:liveState',

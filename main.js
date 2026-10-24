@@ -31,6 +31,14 @@ async function bootstrap() {
     config = await loadConfig();
     config.appVersion = app.getVersion();
 
+    // Acrylic backdrop needs Windows 11 22H2+ (build 22621)
+    const supportAcrylic = (() => {
+        try {
+            const [a, b, build] = require('os').release().split('.').map(Number);
+            return a > 10 || (a === 10 && b === 0 && build >= 22621);
+        } catch (_) { return false; }
+    })();
+
     windowManager = new WindowManager({
         getConfig: () => config,
         spawnSettings: () => settingsWindow.show(),
@@ -44,10 +52,12 @@ async function bootstrap() {
     spotlight = new SpotlightManager({
         getConfig: () => config,
         isQuitting: () => isQuitting,
+        acrylicSupported: () => supportAcrylic,
         getState: () => ({
             url: config.url,
             connected: false, // updated async below
-            liveActive: live?.active || false
+            liveActive: live?.active || false,
+            acrylic: supportAcrylic
         }),
         broadcaster: (ch, payload) => broadcaster(ch, payload)
     });
@@ -189,6 +199,7 @@ function setupIpc() {
 
     // spotlight
     ipcMain.handle('spotlight:hide', () => { spotlight.hide(); return true; });
+    ipcMain.handle('spotlight:resize', (_e, { height }) => { spotlight.setHeight(height); return true; });
     ipcMain.handle('spotlight:query', async (_e, { text }) => {
         const q = (text || '').trim();
         try {
